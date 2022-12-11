@@ -6,6 +6,7 @@ authors = ["Adil Soubki <adil.soubki@stonybrook.edu>"]
 
 [tool.poetry.dependencies]
 python = ">=3.8,<4.0"
+pandas = "^1.5.2"
 
 [tool.poetry.group.dev.dependencies]
 ipython = "^8.7.0"
