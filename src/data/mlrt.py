@@ -8,8 +8,6 @@ from typing import Any
 import pandas as pd  # type: ignore
 
 
-FF_DIR = os.path.abspath("/gpfs/projects/HeinzGroup/asoubki/FlexFringe/")
-FF_DATA_DIR = os.path.join(FF_DIR, "data")
 MLRT_DIR = "/gpfs/projects/HeinzGroup/subregular-learning/data_gen/"
 
 

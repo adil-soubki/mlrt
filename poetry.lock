@@ -172,6 +172,23 @@ files = [
 license = ["ukkonen"]
 
 [[package]]
+name = "ipdb"
+version = "0.13.9"
+description = "IPython-enabled pdb"
+category = "dev"
+optional = false
+python-versions = ">=2.7"
+files = [
+    {file = "ipdb-0.13.9.tar.gz", hash = "sha256:951bd9a64731c444fd907a5ce268543020086a697f6be08f7cc2c9a752a278c5"},
+]
+
+[package.dependencies]
+decorator = {version = "*", markers = "python_version > \"3.6\""}
+ipython = {version = ">=7.17.0", markers = "python_version > \"3.6\""}
+setuptools = "*"
+toml = {version = ">=0.10.2", markers = "python_version > \"3.6\""}
+
+[[package]]
 name = "ipython"
 version = "8.7.0"
 description = "IPython: Productive Interactive Computing"
@@ -934,4 +951,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<4.0"
-content-hash = "ae4efef13b200ba62b1a924662d4a3e974cca27115a460a245f394ce327df5a8"
+content-hash = "cf000993f900b02cfde457bd8dcb17dc3019df0392b505047ae1f3e3ff3b1f8d"
