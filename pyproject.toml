@@ -7,6 +7,9 @@ authors = ["Adil Soubki <adil.soubki@stonybrook.edu>"]
 [tool.poetry.dependencies]
 python = ">=3.8,<4.0"
 pandas = "^1.5.2"
+evaluate = "^0.3.0"
+scikit-learn = "^1.2.0"
+tqdm = "^4.64.1"
 
 [tool.poetry.group.dev.dependencies]
 ipython = "^8.7.0"
