@@ -59,7 +59,10 @@ class FFModel:
             dfa[edge["source"]][edge["name"]] = edge["target"]
         # dfa[state_id]["is_final"] = True/False
         for node in machine["nodes"]:
-            dfa[str(node["id"])]["is_final"] = node["data"]["total_final"] > 0
+            fcnts = node["data"]["final_counts"]
+            assert set(fcnts.keys()) == {"0", "1"}
+            assert not (fcnts["0"] > 0 and fcnts["1"] > 0)
+            dfa[str(node["id"])]["is_final"] = fcnts["0"] > 0
         # assign metadata
         bname = os.path.basename(path)
         mdata = bname.split("_")[1].split(".")

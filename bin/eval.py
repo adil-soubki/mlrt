@@ -38,7 +38,7 @@ def main(ctx: Context) -> None:
         assert path.endswith(".final.json")
         _, dstr, msize = os.path.basename(path).replace(".final.json", "").split("_")
         model = FFModel.from_path(path)
-        for dpath in tqdm(glob(os.path.join(MLRT_DIR, msize, f"{dstr}_Test*")), leave=False):
+        for dpath in tqdm(glob(os.path.join(MLRT_DIR, msize, f"{dstr}_T*")), leave=False):
             results.append(compute(model, dpath))
     ctx.log.info("writing: %s", args.outpath)
     pd.DataFrame(results).to_csv(args.outpath, index=False)
