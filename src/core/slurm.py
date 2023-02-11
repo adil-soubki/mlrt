@@ -10,8 +10,8 @@ from .functional import safe_iter
 
 _FLAGS = {
     "job-name": os.path.basename(sys.argv[0]),
-    "output": "/home/%u/scratch/logs/%x.%j.out",
-    "partition": "defq",
+    "output": "/gpfs/scratch/%u/logs/%x.%j.out",
+    "partition": "medium-28core",
     "time": "08:00:00",
 }
 

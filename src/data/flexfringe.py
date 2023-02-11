@@ -58,11 +58,13 @@ class FFModel:
         for edge in machine["edges"]:
             dfa[edge["source"]][edge["name"]] = edge["target"]
         # dfa[state_id]["is_final"] = True/False
+        assert set(machine["types"]) == {"0", "1"}
+        bad, good = machine["types"]
         for node in machine["nodes"]:
             fcnts = node["data"]["final_counts"]
             assert set(fcnts.keys()) == {"0", "1"}
-            assert not (fcnts["0"] > 0 and fcnts["1"] > 0)
-            dfa[str(node["id"])]["is_final"] = fcnts["0"] > 0
+            assert not (fcnts[bad] > 0 and fcnts[good] > 0)
+            dfa[str(node["id"])]["is_final"] = fcnts[good] > 0
         # assign metadata
         bname = os.path.basename(path)
         mdata = bname.split("_")[1].split(".")
