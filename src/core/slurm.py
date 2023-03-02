@@ -11,7 +11,7 @@ from .functional import safe_iter
 _FLAGS = {
     "job-name": os.path.basename(sys.argv[0]),
     "output": "/gpfs/scratch/%u/logs/%x.%j.out",
-    "partition": "medium-28core",
+    "partition": "medium-24core",
     "time": "08:00:00",
 }
 

@@ -29,8 +29,13 @@ def main(ctx: Context) -> None:
     ctx.parser.add_argument("-y", "--dryrun", action="store_true", help="don't send to slurm")
     ctx.parser.set_defaults(modules=["shared"])
     args = ctx.parser.parse_args()
-
-    for batch in batched(args.paths, args.batch_size):
+    # Parse the given paths or read from file.
+    paths = args.paths
+    if len(args.paths) == 1 and args.paths[0].endswith(".txt"):
+        with open(args.paths[0], "r") as fd:
+            paths = [ln.strip() for ln in fd]
+    # Submit jobs.
+    for batch in batched(paths, args.batch_size):
         cmd = " ".join(list(batch) + [f"-o {args.outpath}"])
         sbatch(
             f"python -u {os.path.abspath(sys.argv[0]).replace('beval', 'eval')} {cmd}",

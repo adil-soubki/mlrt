@@ -26,7 +26,10 @@ def compute(model: FFModel, path: str) -> dict[str, Any]:
     ret["split"] = os.path.splitext(os.path.basename(path))[0].split("_")[-1]
     df = pd.DataFrame(map(asdict, model.evaluate(path)))
     for metric in ("accuracy", "precision", "recall", "f1", "brier_score"): #  "roc_auc"?
-        ret |= evaluate.load(metric).compute(predictions=df.pred, references=df.label)
+        ret |= evaluate.load(
+            metric,
+            experiment_id=str(pd.Timestamp.now())
+        ).compute(predictions=df.pred, references=df.label)
     ret["model_path"] = os.path.abspath(model.path)
     ret["data_path"] = os.path.abspath(path)
     return ret
