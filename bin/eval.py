@@ -48,6 +48,7 @@ def main(ctx: Context) -> None:
     for path in tqdm(args.paths):
         assert path.endswith(".final.json")
         _, dstr, msize = os.path.basename(path).replace(".final.json", "").split("_")
+        msize = "Large"  # Always train on the large dataset.
         model = FFModel.from_path(path)
         for dpath in tqdm(glob(os.path.join(MLRT_DIR, msize, f"{dstr}_T*")), leave=False):
             results.append(compute(model, dpath))
