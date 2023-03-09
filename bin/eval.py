@@ -19,6 +19,7 @@ from src.data.flexfringe import FFModel
 
 
 MLRT_DIR = os.path.join(FF_DIR, "data", "MLRegTest")
+CACHE_DIR = os.path.join(os.path.dirname(FF_DIR), ".cache")
 
 
 def compute(model: FFModel, path: str) -> dict[str, Any]:
@@ -28,7 +29,8 @@ def compute(model: FFModel, path: str) -> dict[str, Any]:
     for metric in ("accuracy", "precision", "recall", "f1", "brier_score"): #  "roc_auc"?
         ret |= evaluate.load(
             metric,
-            experiment_id=str(pd.Timestamp.now())
+            experiment_id=str(pd.Timestamp.now()),
+            cache_dir=CACHE_DIR,  # My home runs out of Disk...
         ).compute(predictions=df.pred, references=df.label)
     ret["model_path"] = os.path.abspath(model.path)
     ret["data_path"] = os.path.abspath(path)
@@ -39,6 +41,8 @@ def main(ctx: Context) -> None:
     ctx.parser.add_argument("paths", nargs="+", help="model paths")
     ctx.parser.add_argument("-o", "--outpath", default=os.path.join(FF_DIR, "evals.csv"))
     args = ctx.parser.parse_args()
+    ctx.log.info("model paths: %s", args.paths)
+    ctx.log.info("outpath: %s", args.outpath)
     # Read existing file if it exists.
     current = pd.DataFrame()
     with suppress(FileNotFoundError):
@@ -48,9 +52,11 @@ def main(ctx: Context) -> None:
     for path in tqdm(args.paths):
         assert path.endswith(".final.json")
         _, dstr, msize = os.path.basename(path).replace(".final.json", "").split("_")
-        msize = "Large"  # Always train on the large dataset.
+        # Always evaluate on large but include same msize train as a sanity check.
+        dpaths =  glob(os.path.join(MLRT_DIR, "Large", f"{dstr}_Test*"))
+        dpaths += glob(os.path.join(MLRT_DIR, msize, f"{dstr}_Train*"))
         model = FFModel.from_path(path)
-        for dpath in tqdm(glob(os.path.join(MLRT_DIR, msize, f"{dstr}_T*")), leave=False):
+        for dpath in tqdm(dpaths, leave=False):
             results.append(compute(model, dpath))
     # Update and write results.
     new = pd.DataFrame(results)

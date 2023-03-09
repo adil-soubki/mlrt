@@ -19,20 +19,22 @@ TMP_DIR = "/gpfs/projects/HeinzGroup/tmp"
 
 
 # XXX: Only does edsm right now.
-def get_missing_models(evalpath: str) -> set[str]:
-    gstr = os.path.join(FF_DIR, "models/edsm*.final.json")
+def get_missing_models(evaldir: str, ini: str) -> set[str]:
+    gstr = os.path.join(FF_DIR, f"models/{ini}*.final.json")
     all_models = {p for p in glob(gstr)}
-    try:
-        evals = pd.read_csv(evalpath)
-    except FileNotFoundError:
-        return all_models
-    else:
+    evals = pd.concat([
+        pd.read_csv(p) for p in glob(os.path.join(evaldir, "*"))
+    ] or [pd.DataFrame()])
+    if not evals.empty:
         return all_models - set(evals.model_path)
+    return all_models
 
 
 # TODO: Maybe this should just merge with eval.py?
 def main(ctx: Context) -> None:
-    ctx.parser.add_argument("-o", "--outpath", default=os.path.join(FF_DIR, "evals.csv"))
+    inis = ["edsm", "rpni", "alergia"]
+    ctx.parser.add_argument("-i", "--ini", default=inis[0])
+    ctx.parser.add_argument("-o", "--outdir", default=os.path.join(FF_DIR, "evals"))
     ctx.parser.add_argument("-y", "--dryrun", action="store_true", help="don't send to slurm")
     ctx.parser.set_defaults(modules=["shared"])
     args = ctx.parser.parse_args()
@@ -40,19 +42,22 @@ def main(ctx: Context) -> None:
     scriptname = os.path.basename(sys.argv[0]).replace(".py", "")
     cmdpath = time.strftime(os.path.join(TMP_DIR, f"{scriptname}.%Y%m%d.%H%M%S.txt"))
     cmds = [] 
-    for path in get_missing_models(args.outpath):
-        cmds.append(f"{EVAL_BIN} {path} -o {args.outpath}")
+    for path in get_missing_models(args.outdir, args.ini):
+        dstr = ".".join(os.path.basename(path).split(".")[:-2])
+        outpath = os.path.join(args.outdir, f"{dstr}.csv")
+        cmds.append(f"{EVAL_BIN} {path} -o {outpath}")
     ctx.log.info("writing: %s", cmdpath)
     with open(cmdpath, "w") as fd:
         fd.write("\n".join(cmds))
     # Submit job to slurm. 
+    os.makedirs(args.outdir, exist_ok=True)
     sbatch(
         f"cat {cmdpath} | parallel --tmpdir={TMP_DIR} -l1 srun -N1 -n1 sh -c '$@' --",
         flags={
-            "ntasks-per-node": 28,
-            "nodes": 2,
+            "ntasks-per-node": 24,
+            "nodes": 1,
             "time": "7-00:00:00",
-            "partition": "extended-28core",
+            "partition": "extended-24core",
         },
         dryrun=args.dryrun
     )

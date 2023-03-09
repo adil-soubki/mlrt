@@ -8,6 +8,9 @@ from dataclasses import dataclass
 from typing import Any, Iterator
 
 
+PROBABALISTIC_INIS = ["alergia"]
+
+
 @dataclass
 class FFData:
     path: str
@@ -50,6 +53,9 @@ class FFModel:
 
     @classmethod
     def from_path(cls, path: str) -> FFModel:
+        ini = os.path.basename(path).split("_")[
+            0
+        ]  # XXX: Code repetition here... clean up.
         with open(path, "r") as fd:
             machine = json.load(fd)
         # {src1: {inp1: tgt1, ..., is_final: True/False}, ...}
@@ -61,10 +67,14 @@ class FFModel:
         assert set(machine["types"]) == {"0", "1"}
         bad, good = machine["types"]
         for node in machine["nodes"]:
-            fcnts = node["data"]["final_counts"]
+            if ini in PROBABALISTIC_INIS:
+                fcnts = {"0": 0, "1": 0} | node["data"].get("final_counts", {})
+                dfa[str(node["id"])]["is_final"] = fcnts[good] > fcnts[bad]
+            else:
+                fcnts = node["data"]["final_counts"]
+                assert not (fcnts[bad] > 0 and fcnts[good] > 0)
+                dfa[str(node["id"])]["is_final"] = fcnts[good] > 0
             assert set(fcnts.keys()) == {"0", "1"}
-            assert not (fcnts[bad] > 0 and fcnts[good] > 0)
-            dfa[str(node["id"])]["is_final"] = fcnts[good] > 0
         # assign metadata
         bname = os.path.basename(path)
         mdata = bname.split("_")[1].split(".")
