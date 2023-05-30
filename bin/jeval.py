@@ -23,7 +23,7 @@ def get_missing_models(evaldir: str, ini: str) -> set[str]:
     gstr = os.path.join(FF_DIR, f"models/{ini}*.final.json")
     all_models = {p for p in glob(gstr)}
     evals = pd.concat([
-        pd.read_csv(p) for p in glob(os.path.join(evaldir, "*"))
+        pd.read_csv(p) for p in glob(os.path.join(evaldir, "*.csv"))
     ] or [pd.DataFrame()])
     if not evals.empty:
         return all_models - set(evals.model_path)
@@ -54,10 +54,10 @@ def main(ctx: Context) -> None:
     sbatch(
         f"cat {cmdpath} | parallel --tmpdir={TMP_DIR} -l1 srun -N1 -n1 sh -c '$@' --",
         flags={
-            "ntasks-per-node": 24,
+            "ntasks-per-node": 28,
             "nodes": 1,
-            "time": "7-00:00:00",
-            "partition": "extended-24core",
+            "time": "2-00:00:00",
+            "partition": "long-28core",
         },
         dryrun=args.dryrun
     )

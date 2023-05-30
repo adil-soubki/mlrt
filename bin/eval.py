@@ -26,6 +26,7 @@ def compute(model: FFModel, path: str) -> dict[str, Any]:
     ret = {k: v for k, v in vars(model).items() if k not in ("path", "machine", "dfa")}
     ret["split"] = os.path.splitext(os.path.basename(path))[0].split("_")[-1]
     df = pd.DataFrame(map(asdict, model.evaluate(path)))
+    #  df = pd.DataFrame(map(asdict, model.results(path)))  # Uses sicco method.
     for metric in ("accuracy", "precision", "recall", "f1", "brier_score"): #  "roc_auc"?
         ret |= evaluate.load(
             metric,

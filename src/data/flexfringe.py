@@ -3,9 +3,15 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
+import sys
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Iterator
+
+import pandas as pd  # type: ignore
+
+from ..bin.flexfringe import FF_BIN, FF_DIR
 
 
 PROBABALISTIC_INIS = ["alergia"]
@@ -105,3 +111,34 @@ class FFModel:
         for label, _, seq in FFData.from_path(path).samples:
             assert label in (0, 1)
             yield FFModelResult(seq, bool(label), self(seq))
+
+    def results(self, path: str) -> Iterator[FFModelResult]:
+        _, dstr, _ = os.path.basename(self.path).replace(".final.json", "").split("_")
+        dsize = os.path.basename(os.path.dirname(path))
+        split = os.path.basename(path).replace(".txt", "").split("_")[-1]
+        assert dsize in {"Small", "Mid", "Large"}
+        assert split in {"Train", "TestSR", "TestSA", "TestLR", "TestLA"}
+        rdir = os.path.join(FF_DIR, "results")
+        rpath = os.path.join(
+            rdir, f"{self.ini}-{self.data_size}_{dstr}_{dsize}-{split}.result"
+        )
+        os.makedirs(rdir, exist_ok=True)
+        inipath = os.path.join(FF_DIR, "ini", "likelihood.ini")
+        cmd = [
+            f"{FF_BIN} {path} --aptafile {self.path} "
+            f"--ini {inipath} --mode predict --predicttype 1; "
+            f"mv {self.path}.result {rpath}"
+        ]
+        subprocess.run(
+            cmd, stdout=sys.stdout, stderr=sys.stderr, shell=True, check=True
+        )
+        for row in pd.read_csv(rpath, sep=";").to_dict("records"):
+            yield FFModelResult(
+                list(
+                    map(
+                        int, row[" abbadingo trace"].replace('"', "").strip().split(" ")
+                    )
+                ),
+                label=row[" trace type"],
+                pred=row[" predicted trace type"],
+            )
