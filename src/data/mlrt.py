@@ -72,4 +72,6 @@ class MLRegTestFile:
         return header, samples
 
     def to_df(self) -> pd.DataFrame:
-        return pd.read_csv(self.path, sep="\t", names=["sample", "label"])
+        return pd.read_csv(
+            self.path, sep="\t", names=["sample", "label"], keep_default_na=False
+        )

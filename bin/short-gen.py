@@ -2,8 +2,10 @@
 # -*- coding: utf-8 -*-
 """Generates short training examples."""
 import os
+from glob import glob
 
 import pynini
+import pandas as pd
 
 from src.core.context import Context
 from src.core.app import harness
@@ -133,29 +135,29 @@ def get_short_data_from_ltag(ltag: str):
 
 
 def main(ctx: Context) -> None:
-    ctx.parser.add_argument("ltag")
-    ctx.parser.add_argument("-y", "--dryrun", action="store_true", help="don't execute")
+    ctx.parser.add_argument("-o", "--outdir", required=True)
     args = ctx.parser.parse_args()
-    # Build FSAs
-    #  the_fsa = pynini.Fst.read(os.path.join(FST_DIR, f"{args.ltag}.fst"))
-    #  the_s = sigma(the_fsa)
-    #  the_ss = sigmastar(the_fsa)
-    #  the_cofsa = pynini.difference(sigmastar(the_fsa), the_fsa)
-    #  the_cofsa.optimize()
-    #  # Set up dictionary for string lengths.
-    #  min_len, max_len = 1, 19 
-    #  pos_dict = make_string_dict(the_fsa, min_len - 1, max_len + 1, the_s)
-    #  neg_dict = make_string_dict(the_cofsa, min_len - 1, max_len + 1, the_s)
-    #  # Create training data with duplicates.
-    #  data = create_data_with_duplicate(
-    #      pos_dict,
-    #      neg_dict,
-    #      min_len,
-    #      max_len,
-    #      25
-    #  )
-    data = get_short_data_from_ltag(args.ltag)
-    print("\n".join(["\t".join(map(str, tup)) for tup in data]))
+
+
+    for data_size in ("Small", "Mid", "Large"):
+        outdir = os.path.join(args.outdir, data_size)
+        os.makedirs(outdir, exist_ok=True)
+        for path in glob(os.path.join(MLRT_DIR, data_size, "*Train.txt")):
+            ltag = os.path.basename(path).split("_")[0]
+            split = os.path.basename(path).split("_")[1].split(".")[0]
+            assert split == "Train"
+            if "co" in ltag:
+                continue  # XXX: No fst files for these?
+            outpath = os.path.join(outdir, f"{ltag}_TrainPS.txt")
+            og_data = list(pd.read_csv(
+                path, sep="\t", names=["sample", "label"]
+            ).itertuples(index=False, name=None))
+            data = get_short_data_from_ltag(ltag) + og_data
+            pd.DataFrame(data).to_csv(outpath, index=False, header=False, sep="\t")
+            ff_string = MLRegTestFile.from_path(outpath).to_string()
+            with open(outpath, "w") as fd:
+                fd.write(ff_string)
+            ctx.log.info("wrote: %s", outpath)
 
 
 if __name__ == "__main__":
