@@ -135,23 +135,11 @@ def get_short_data_from_ltag(ltag: str):
     )
 
 
-def generate_compliment(path: str) -> str:
-    ff_data = FFData.from_path(path)
-    # Flip samples
-    header, samples = ff_data.header, []
-    for label, length, seq in ff_data.samples:
-        assert label in (0, 1)
-        assert length == len(seq)
-        label = 0 if label == 1 else 1
-        samples.append((label, length, seq))
-    assert header == ff_data.header
-    assert len(samples) == len(ff_data.samples)
-    # Convert to string.
-    lines = []
-    lines.append(" ".join(map(str, header)))
-    for smpl in samples:
-        lines.append(" ".join(map(str, [smpl[0], smpl[1]] + smpl[2])))
-    return "\n".join(lines)
+def get_ltags() -> set[str]:
+    ret = set()
+    for path in glob(os.path.join(MLRT_DIR, "*", "*Train.txt")):
+        ret.add(os.path.basename(path).split("_")[0])
+    return ret
 
 
 def main(ctx: Context) -> None:
@@ -159,44 +147,70 @@ def main(ctx: Context) -> None:
     ctx.parser.add_argument("-f", "--force", action="store_true", help="overwrite existing")
     args = ctx.parser.parse_args()
 
+    # XXX: Remove these file format dirs and update src.data.flexfringe.FFModel.results()
+    # Generate OnlyShort data.
+    outdir_os = os.path.join(args.outdir, "OnlyShort")
+    for file_format in ("MLRegTest", "FlexFringe"):
+        os.makedirs(os.path.join(outdir_os, file_format), exist_ok=True)
+    for ltag in get_ltags():
+        if "co" in ltag:
+            continue  # Skip compliment classes on first pass.
+        outpath_mlrt = os.path.join(outdir_os, "MLRegTest", f"{ltag}_TrainOS.txt")
+        outpath_ff = os.path.join(outdir_os, "FlexFringe", f"{ltag}_TrainOS.txt")
+        if not os.path.exists(outpath_mlrt) or args.force:
+            data = get_short_data_from_ltag(ltag)
+            pd.DataFrame(data).to_csv(outpath_mlrt, index=False, header=False, sep="\t")
+            ctx.log.info("wrote: %s", outpath_mlrt)
+        if not os.path.exists(outpath_ff) or args.force:
+            ff_string = MLRegTestFile.from_path(outpath_mlrt).to_string()
+            with open(outpath_ff, "w") as fd:
+                fd.write(ff_string)
+            ctx.log.info("wrote: %s", outpath_ff)
+    # Generate OnlyShort compliment classes on second pass.
+    for ltag in get_ltags():
+        if "co" not in ltag:
+            continue  # Skip compliment classes on first pass.
+        outpath_mlrt = os.path.join(outdir_os, "MLRegTest", f"{ltag}_TrainOS.txt")
+        outpath_ff = os.path.join(outdir_os, "FlexFringe", f"{ltag}_TrainOS.txt")
+        if not os.path.exists(outpath_mlrt) or args.force:
+            df = MLRegTestFile.from_path(
+                inpath := outpath_mlrt.replace(ltag, ltag.replace("co", ""))
+            ).to_df().eval("label = not label")
+            ctx.log.info("read: %s", inpath)
+            df.to_csv(outpath_mlrt, index=False, header=False, sep="\t")
+            ctx.log.info("wrote: %s", outpath_mlrt)
+        if not os.path.exists(outpath_ff) or args.force:
+            ff_string = MLRegTestFile.from_path(outpath_mlrt).to_string()
+            ctx.log.info("read: %s", oupath_mlrt)
+            with open(outpath_ff, "w") as fd:
+                fd.write(ff_string)
+            ctx.log.info("wrote: %s", outpath_ff)
+    # Generate PlusShort data (FlexFringe format only).
     for data_size in ("Small", "Mid", "Large"):
-        outdir = os.path.join(args.outdir, data_size)
-        os.makedirs(outdir, exist_ok=True)
+        outdir_ps = os.path.join(args.outdir, "PlusShort", data_size)
+        os.makedirs(outdir_ps, exist_ok=True)
         for path in glob(os.path.join(MLRT_DIR, data_size, "*Train.txt")):
             ltag = os.path.basename(path).split("_")[0]
             split = os.path.basename(path).split("_")[1].split(".")[0]
             assert split == "Train"
-            if "co" in ltag:
-                continue  # No fst files for these. Generate on second pass.
-            outpath = os.path.join(outdir, f"{ltag}_TrainPS.txt")
-            if os.path.exists(outpath) and not args.force:
+            outpath_ps = os.path.join(outdir_ps, f"{ltag}_TrainPS.txt")
+            if os.path.exists(outpath_ps) and not args.force:
                 continue  # Skip existing files.
             og_data = list(pd.read_csv(
                 path, sep="\t", names=["sample", "label"]
             ).itertuples(index=False, name=None))
-            data = get_short_data_from_ltag(ltag) + og_data
-            pd.DataFrame(data).to_csv(outpath, index=False, header=False, sep="\t")
-            ff_string = MLRegTestFile.from_path(outpath).to_string()
-            with open(outpath, "w") as fd:
+            ctx.log.info("read: %s", path)
+            sh_path = os.path.join(outdir_os, "MLRegTest", f"{ltag}_TrainOS.txt")
+            sh_data = list(pd.read_csv(
+                sh_path, sep="\t", names=["sample", "label"]
+            ).itertuples(index=False, name=None))
+            ctx.log.info("read: %s", sh_path)
+            data = sh_data + og_data
+            pd.DataFrame(data).to_csv(outpath_ps, index=False, header=False, sep="\t")
+            ff_string = MLRegTestFile.from_path(outpath_ps).to_string()
+            with open(outpath_ps, "w") as fd:
                 fd.write(ff_string)
-            ctx.log.info("wrote: %s", outpath)
-        # Generate compliment classes on second pass.
-        for path in glob(os.path.join(MLRT_DIR, data_size, "*Train.txt")):
-            ltag = os.path.basename(path).split("_")[0]
-            split = os.path.basename(path).split("_")[1].split(".")[0]
-            assert split == "Train"
-            if "co" not in ltag:
-                continue  # Only generate for compliment classes.
-            outpath = os.path.join(outdir, f"{ltag}_TrainPS.txt")
-            if os.path.exists(outpath) and not args.force:
-                continue  # Skip existing files.
-            ff_string = generate_compliment(
-                inpath := outpath.replace(ltag, ltag.replace("co", ""))
-            )
-            ctx.log.info("read: %s", inpath)
-            with open(outpath, "w") as fd:
-                fd.write(ff_string)
-            ctx.log.info("wrote: %s", outpath)
+            ctx.log.info("wrote: %s", outpath_ps)
 
 
 if __name__ == "__main__":
