@@ -1,6 +1,32 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Generates short training examples."""
+"""Generates short training data.
+
+Output Stucture:
+    |- outdir
+        |- OnlyShort
+        |   |- 04.02.TcoSL.2.1.0_TrainOS.ff [FlexFringe format]
+        |   |- 04.02.TcoSL.2.1.0_TrainOS.mlrt [MLRegTest format]
+        |   |- ...
+        |- PlusShort
+            |- Small
+            |   |- 04.02.TcoSL.2.1.0_TrainPS.txt [FlexFringe format]
+            |   |- ...
+            |- Mid
+            |   |- 04.02.TcoSL.2.1.0_TrainPS.txt [FlexFringe format]
+            |   |- ...
+            |- Large
+                |- 04.02.TcoSL.2.1.0_TrainPS.txt [FlexFringe format]
+                |- ...
+
+Example Usage:
+    $ sgen.py -o /path/to/outdir
+    $ sgen.py -o /path/to/outdir --force
+
+Note:
+    Requires pynini 2.1.2.
+    >>> conda install -c conda-forge pynini=2.1.2
+"""
 import os
 from glob import glob
 
@@ -147,16 +173,14 @@ def main(ctx: Context) -> None:
     ctx.parser.add_argument("-f", "--force", action="store_true", help="overwrite existing")
     args = ctx.parser.parse_args()
 
-    # XXX: Remove these file format dirs and update src.data.flexfringe.FFModel.results()
     # Generate OnlyShort data.
     outdir_os = os.path.join(args.outdir, "OnlyShort")
-    for file_format in ("MLRegTest", "FlexFringe"):
-        os.makedirs(os.path.join(outdir_os, file_format), exist_ok=True)
+    os.makedirs(outdir_os, exist_ok=True)
     for ltag in get_ltags():
         if "co" in ltag:
             continue  # Skip compliment classes on first pass.
-        outpath_mlrt = os.path.join(outdir_os, "MLRegTest", f"{ltag}_TrainOS.txt")
-        outpath_ff = os.path.join(outdir_os, "FlexFringe", f"{ltag}_TrainOS.txt")
+        outpath_mlrt = os.path.join(outdir_os, f"{ltag}_TrainOS.mlrt")
+        outpath_ff = os.path.join(outdir_os, f"{ltag}_TrainOS.ff")
         if not os.path.exists(outpath_mlrt) or args.force:
             data = get_short_data_from_ltag(ltag)
             pd.DataFrame(data).to_csv(outpath_mlrt, index=False, header=False, sep="\t")
@@ -169,9 +193,9 @@ def main(ctx: Context) -> None:
     # Generate OnlyShort compliment classes on second pass.
     for ltag in get_ltags():
         if "co" not in ltag:
-            continue  # Skip compliment classes on first pass.
-        outpath_mlrt = os.path.join(outdir_os, "MLRegTest", f"{ltag}_TrainOS.txt")
-        outpath_ff = os.path.join(outdir_os, "FlexFringe", f"{ltag}_TrainOS.txt")
+            continue  # Skip non-compliment classes.
+        outpath_mlrt = os.path.join(outdir_os, f"{ltag}_TrainOS.mlrt")
+        outpath_ff = os.path.join(outdir_os, f"{ltag}_TrainOS.ff")
         if not os.path.exists(outpath_mlrt) or args.force:
             df = MLRegTestFile.from_path(
                 inpath := outpath_mlrt.replace(ltag, ltag.replace("co", ""))
@@ -181,7 +205,7 @@ def main(ctx: Context) -> None:
             ctx.log.info("wrote: %s", outpath_mlrt)
         if not os.path.exists(outpath_ff) or args.force:
             ff_string = MLRegTestFile.from_path(outpath_mlrt).to_string()
-            ctx.log.info("read: %s", oupath_mlrt)
+            ctx.log.info("read: %s", outpath_mlrt)
             with open(outpath_ff, "w") as fd:
                 fd.write(ff_string)
             ctx.log.info("wrote: %s", outpath_ff)
@@ -200,7 +224,7 @@ def main(ctx: Context) -> None:
                 path, sep="\t", names=["sample", "label"]
             ).itertuples(index=False, name=None))
             ctx.log.info("read: %s", path)
-            sh_path = os.path.join(outdir_os, "MLRegTest", f"{ltag}_TrainOS.txt")
+            sh_path = os.path.join(outdir_os, f"{ltag}_TrainOS.mlrt")
             sh_data = list(pd.read_csv(
                 sh_path, sep="\t", names=["sample", "label"]
             ).itertuples(index=False, name=None))
