@@ -77,7 +77,7 @@ class FFModel:
                 fcnts = {"0": 0, "1": 0} | node["data"].get("final_counts", {})
                 dfa[str(node["id"])]["is_final"] = fcnts[good] > fcnts[bad]
             else:
-                fcnts = node["data"]["final_counts"]
+                fcnts = {"0": 0, "1": 0} | node["data"]["final_counts"]
                 assert not (fcnts[bad] > 0 and fcnts[good] > 0)
                 dfa[str(node["id"])]["is_final"] = fcnts[good] > 0
             assert set(fcnts.keys()) == {"0", "1"}
