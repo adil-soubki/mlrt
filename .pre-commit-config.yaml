@@ -1,6 +1,6 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
-exclude: ^(lib/|bin/|data/)
+exclude: ^(lib/|data/)
 repos:
   - repo: https://github.com/psf/black
     rev: 22.8.0
@@ -28,6 +28,7 @@ repos:
         language: system
         types: [python]
         args: [--strict]
+        exclude: ^(bin/)
         # exclude: |
         #     (?x)^(
         #         jadoch/bin/train.py | # transformers breaks type checking.
