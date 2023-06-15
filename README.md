@@ -1,1 +1,1 @@
-Some boilerplate I use often.
+This is the repository corresponding to the "Benchmarking State-Merging Algorithms for Learning Regular Languages" to be presented at [ICGI 2023](https://icgi2023.inria.fr/). A more complete README is forthcoming.
