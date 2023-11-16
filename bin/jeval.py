@@ -13,10 +13,10 @@ from glob import glob
 
 import pandas as pd
 
+from src.bin.flexfringe import FF_DIR
 from src.core.context import Context
 from src.core.app import harness
-from src.core.slurm import sbatch
-from src.bin.flexfringe import FF_DIR
+from src.core import slurm
 
 
 EVAL_BIN = os.path.abspath(os.path.join(os.path.dirname(__file__), "eval.py"))
@@ -26,9 +26,10 @@ TMP_DIR = "/gpfs/projects/HeinzGroup/tmp"
 def get_missing_models(evaldir: str, modeldir: str, ini: str) -> set[str]:
     gstr = os.path.join(os.path.realpath(modeldir), f"{ini}*.final.json")
     all_models = {p for p in glob(gstr)}
-    evals = pd.concat([
-        pd.read_csv(p) for p in glob(os.path.join(evaldir, "*.csv"))
-    ] or [pd.DataFrame()])
+    evals = pd.concat(
+        [pd.read_csv(p) for p in glob(os.path.join(evaldir, "*.csv"))]
+        or [pd.DataFrame()]
+    )
     if not evals.empty:
         return all_models - set(evals.model_path)
     return all_models
@@ -37,16 +38,22 @@ def get_missing_models(evaldir: str, modeldir: str, ini: str) -> set[str]:
 # TODO: Maybe this should just merge with eval.py?
 def main(ctx: Context) -> None:
     inis = ["edsm", "rpni", "alergia"]
+    partitions = slurm.sinfo().PARTITION.unique()
     ctx.parser.add_argument("-i", "--ini", default=inis[0])
     ctx.parser.add_argument("-o", "--outdir", default=os.path.join(FF_DIR, "evals"))
     ctx.parser.add_argument("-m", "--modeldir", default=os.path.join(FF_DIR, "models"))
-    ctx.parser.add_argument("-y", "--dryrun", action="store_true", help="don't send to slurm")
+    ctx.parser.add_argument(
+        "-p", "--partition", choices=partitions, default="short-28core"
+    )
+    ctx.parser.add_argument(
+        "-y", "--dryrun", action="store_true", help="don't send to slurm"
+    )
     ctx.parser.set_defaults(modules=["shared"])
     args = ctx.parser.parse_args()
     # Generate file for gnu-parallel.
     scriptname = os.path.basename(sys.argv[0]).replace(".py", "")
     cmdpath = time.strftime(os.path.join(TMP_DIR, f"{scriptname}.%Y%m%d.%H%M%S.txt"))
-    cmds = [] 
+    cmds = []
     for path in get_missing_models(args.outdir, args.modeldir, args.ini):
         dstr = ".".join(os.path.basename(path).split(".")[:-2])
         outpath = os.path.join(args.outdir, f"{dstr}.csv")
@@ -54,17 +61,17 @@ def main(ctx: Context) -> None:
     ctx.log.info("writing: %s", cmdpath)
     with open(cmdpath, "w") as fd:
         fd.write("\n".join(cmds))
-    # Submit job to slurm. 
+    # Submit job to slurm.
     os.makedirs(args.outdir, exist_ok=True)
-    sbatch(
+    slurm.sbatch(
         f"cat {cmdpath} | parallel --tmpdir={TMP_DIR} -l1 srun -N1 -n1 sh -c '$@' --",
         flags={
             "ntasks-per-node": 28,
             "nodes": 1,
-            "time": "2-00:00:00",
-            "partition": "long-28core",
+            "time": slurm.timelimit(args.partition),
+            "partition": args.partition,
         },
-        dryrun=args.dryrun
+        dryrun=args.dryrun,
     )
 
 

@@ -24,6 +24,9 @@ from src.core.context import Context
 from src.core.app import harness
 from src.core import slurm
 
+# TODO: https://docs-research-it.berkeley.edu/services/high-performance-computing
+#                                            /user-guide/running-your-jobs/gnu-parallel/
+
 
 JOBS_DIR = "/gpfs/projects/HeinzGroup/Jobs"
 TMP_DIR = "/gpfs/projects/HeinzGroup/tmp"
@@ -114,7 +117,9 @@ def main(ctx: Context) -> None:
     for idx, grp in enumerate(cmd_grps):
         grp = list(grp)
         partition = args.partitions[idx % len(args.partitions)]
-        cores = 28 if "28" in partition else 24
+        cores = (28 if "28" in partition else 24) // 2
+        nodes = 8 if "medium" in partition else 1
+        nodes = 24 if "large" in partition else nodes
         jid = f"{args.ini}-{args.data_size}-{args.data_type}-{idx + 1}"
         cmdpath = os.path.join(JOBS_DIR, f"{jid}.txt")
         ctx.log.info(f"writing: {cmdpath} ({len(grp)} commands)")
@@ -122,10 +127,11 @@ def main(ctx: Context) -> None:
             fd.write("\n".join(grp))
         slurmpath = os.path.join(JOBS_DIR, f"{jid}.slurm")
         slurm.sbatch(
+            #  f"cat {cmdpath} | parallel --tmpdir={TMP_DIR} -l1 srun -N1 -n1 sh -c '$@' --",
             f"cat {cmdpath} | parallel --tmpdir={TMP_DIR} -P {cores}",
             flags={
                 "ntasks-per-node": cores,
-                "nodes": 1,
+                "nodes": nodes,
                 "time": slurm.timelimit(partition),
                 "partition": partition,
                 "mail-type": "BEGIN,END",
