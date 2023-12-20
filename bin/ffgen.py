@@ -10,6 +10,12 @@ Example Usage:
                --data-size Mid \
                --data-type TrainPS \
                --partitions short-28core
+    $ ffgen.py --ini edsm \
+               --modeldir ../FlexFringe/models-ps \
+               --datadir ../FlexFringe/data/MLRegTestPS/ \
+               --data-size Large \
+               --data-type TrainPS \
+               --partitions short-28core medium-28core
 """
 import os
 import sys
