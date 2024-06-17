@@ -101,6 +101,8 @@ def main(ctx: Context) -> None:
     )
     args = ctx.parser.parse_args()
 
+    # Make the output dir if it isn't there.
+    os.makedirs(args.modeldir, exist_ok=True)
     # Use a different binary for rpni since it is not on the main branch.
     ff_dir = SF_DIR if args.ini == "rpni" else FF_DIR
     ff_bin = os.path.join(ff_dir, "flexfringe")
@@ -118,6 +120,10 @@ def main(ctx: Context) -> None:
             continue  # Skip incorrect ini/size.
         out_file = os.path.join(args.modeldir, f"{ini}_{bname}_{dsize}")
         cmds.append(f"{ff_bin} {path} --ini {ini_file} --outputfile {out_file}")
+        #  cmds.append(
+        #      f"{ff_bin} <(head -n 1 {path}; tail -n +2 {path} | shuf) "
+        #      f"--ini {ini_file} --outputfile {out_file}"
+        #  )
     cmd_grps = distribute(len(args.partitions) * 2, cmds)
     # Generate slurm job files.
     for idx, grp in enumerate(cmd_grps):
