@@ -48,7 +48,9 @@ def main(ctx: Context) -> None:
     ctx.parser.add_argument(
         "-y", "--dryrun", action="store_true", help="don't send to slurm"
     )
-    ctx.parser.set_defaults(modules=["shared"])
+    ctx.parser.set_defaults(
+        modules=["shared", "gnu-parallel/6.0", "anaconda/3", "gcc/12.1.0"]
+    )
     args = ctx.parser.parse_args()
     # Generate file for gnu-parallel.
     scriptname = os.path.basename(sys.argv[0]).replace(".py", "")
@@ -63,14 +65,20 @@ def main(ctx: Context) -> None:
         fd.write("\n".join(cmds))
     # Submit job to slurm.
     os.makedirs(args.outdir, exist_ok=True)
+    # XXX: This logic is also in bin/ffgen.py. Should be pulled into the slurm module.
+    cores = 28 if "28" in args.partition else 24
+    nodes = 8 if "medium" in args.partition else 1
+    nodes = 24 if "large" in args.partition else nodes
     slurm.sbatch(
-        f"cat {cmdpath} | parallel --tmpdir={TMP_DIR} -l1 srun -N1 -n1 sh -c '$@' --",
+        # f"cat {cmdpath} | parallel --tmpdir={TMP_DIR} -l1 srun -N1 -n1 sh -c '$@' --",
+        f"cat {cmdpath} | parallel --tmpdir={TMP_DIR} -P {cores}",
         flags={
-            "ntasks-per-node": 28,
-            "nodes": 1,
+            "ntasks-per-node": cores,
+            "nodes": nodes,
             "time": slurm.timelimit(args.partition),
             "partition": args.partition,
         },
+        modules=args.modules,
         dryrun=args.dryrun,
     )
 

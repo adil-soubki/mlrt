@@ -1,6 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Batch eval.py jobs and send them to slurm."""
+"""
+Batch eval.py jobs and send them to slurm.
+
+Note:
+    This is currently unused.
+"""
 import os
 import sys
 from itertools import islice
@@ -15,18 +20,22 @@ def batched(iterable, n):
     "Batch data into tuples of length n. The last batch may be shorter."
     # batched('ABCDEFG', 3) --> ABC DEF G
     if n < 1:
-        raise ValueError('n must be at least one')
+        raise ValueError("n must be at least one")
     it = iter(iterable)
-    while (batch := tuple(islice(it, n))):
+    while batch := tuple(islice(it, n)):
         yield batch
 
 
 # TODO: Maybe this should just merge with eval.py?
 def main(ctx: Context) -> None:
     ctx.parser.add_argument("paths", nargs="+", help="model paths")
-    ctx.parser.add_argument("-o", "--outpath", default=os.path.join(FF_DIR, "evals.csv"))
+    ctx.parser.add_argument(
+        "-o", "--outpath", default=os.path.join(FF_DIR, "evals.csv")
+    )
     ctx.parser.add_argument("-n", "--batch-size", type=int, default=32)
-    ctx.parser.add_argument("-y", "--dryrun", action="store_true", help="don't send to slurm")
+    ctx.parser.add_argument(
+        "-y", "--dryrun", action="store_true", help="don't send to slurm"
+    )
     ctx.parser.set_defaults(modules=["shared"])
     args = ctx.parser.parse_args()
     # Parse the given paths or read from file.
@@ -39,7 +48,7 @@ def main(ctx: Context) -> None:
         cmd = " ".join(list(batch) + [f"-o {args.outpath}"])
         sbatch(
             f"python -u {os.path.abspath(sys.argv[0]).replace('beval', 'eval')} {cmd}",
-            dryrun=args.dryrun
+            dryrun=args.dryrun,
         )
 
 
